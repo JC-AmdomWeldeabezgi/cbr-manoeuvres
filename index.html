@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bijzondere Verrichtingen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:ital,wght@0,400;0,600;0,800;1,400&family=Overpass+Mono:wght@600&display=swap">
+<style>
+/* Layout: one column — header, manoeuvre chips, stage (top-down road canvas + HUD), bilingual caption, controls, numbered steps, tips, videos.
+   Type: Overpass (a highway-sign face) throughout; mono for step counters. Colour: Dutch road-sign blue as accent, asphalt neutrals. */
+:root{
+  --bg:#EEF1F4; --surface:#FFFFFF; --surface-2:#F5F7F9; --fg:#121A24; --muted:#5B6776; --line:#D6DDE5;
+  --blue:#1C4F9C; --blue-soft:#E1EAF6; --blue-ink:#163F7D; --amber:#E89A12; --red:#C8332B; --ok:#1F7A4D;
+  --sans:"Overpass",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"Overpass Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --shadow:0 1px 2px rgba(18,26,36,.06),0 10px 28px -16px rgba(18,26,36,.28);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E131A; --surface:#161D27; --surface-2:#1B2430; --fg:#E7ECF2; --muted:#98A5B5; --line:#2A3542;
+  --blue:#6FA2EE; --blue-soft:#1A2A42; --blue-ink:#9CC0F5; --amber:#F2B03B; --red:#E8605A; --ok:#4FC28A;
+  --shadow:0 1px 2px rgba(0,0,0,.35),0 12px 30px -16px rgba(0,0,0,.7); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E131A; --surface:#161D27; --surface-2:#1B2430; --fg:#E7ECF2; --muted:#98A5B5; --line:#2A3542;
+  --blue:#6FA2EE; --blue-soft:#1A2A42; --blue-ink:#9CC0F5; --amber:#F2B03B; --red:#E8605A; --ok:#4FC28A;
+  --shadow:0 1px 2px rgba(0,0,0,.35),0 12px 30px -16px rgba(0,0,0,.7); color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font:400 15px/1.5 var(--sans);padding-inline:16px;padding-block:18px 48px;margin:0}
+.wrap{max-width:820px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+button{font:inherit;color:inherit}
+button:focus-visible,a:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+
+header{display:flex;align-items:center;gap:14px}
+.sign{flex:none;width:46px;height:46px;border-radius:9px;background:var(--blue);color:#fff;display:grid;place-items:center;border:3px solid #fff;box-shadow:0 0 0 1.5px var(--blue)}
+.sign svg{width:26px;height:26px}
+h1{font:800 26px/1.05 var(--sans);margin:0;letter-spacing:-.01em;text-wrap:balance}
+.sub{color:var(--muted);font-size:14px;margin-top:3px}
+.note{font-size:13.5px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.note b{color:var(--fg)}
+
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:thin;scroll-snap-type:x proximity}
+.chip{flex:none;scroll-snap-align:start;display:flex;flex-direction:column;align-items:flex-start;gap:0;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:8px 12px;cursor:pointer;text-align:left;min-width:132px}
+.chip .n{font:600 11px var(--mono);color:var(--muted)}
+.chip b{font-weight:800;font-size:14px;line-height:1.2}
+.chip span{font-size:12px;color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--blue);border-color:var(--blue);color:#fff}
+.chip[aria-pressed="true"] span,.chip[aria-pressed="true"] .n{color:rgba(255,255,255,.8)}
+
+.titlebar{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.titlebar h2{font:800 22px/1.15 var(--sans);margin:0}
+.titlebar h2 small{display:block;font-weight:400;font-style:italic;font-size:15px;color:var(--muted)}
+.tag{font-size:12px;font-weight:600;color:var(--blue-ink);background:var(--blue-soft);padding:4px 10px;border-radius:999px}
+
+.stage{position:relative;border-radius:18px;overflow:hidden;box-shadow:var(--shadow);background:#141A21}
+.stage canvas{display:block;width:100%;height:auto}
+.hud{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:8px 10px;min-height:52px}
+.hud-l{display:flex;gap:8px;align-items:center}
+.pill{background:rgba(255,255,255,.08);color:#fff;border-radius:12px;padding:6px 10px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;backdrop-filter:blur(4px)}
+.gear{display:flex;gap:2px;font:600 14px var(--mono)}
+.gear i{font-style:normal;width:20px;height:22px;display:grid;place-items:center;border-radius:5px;color:rgba(255,255,255,.4)}
+.gear i.on{background:#fff;color:#111}
+.wheel{width:30px;height:30px;transition:transform .25s}
+.ind{display:flex;gap:4px}
+.ind svg{width:20px;height:20px;opacity:.22}
+.ind svg.on{opacity:1;animation:blink .7s steps(1) infinite}
+@keyframes blink{50%{opacity:.25}}
+.pill.look{background:#F2B03B;color:#1A1200}
+.look svg{width:18px;height:18px}
+
+.caption{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:grid;grid-template-columns:auto 1fr;gap:4px 14px;min-height:108px;align-items:start}
+.caption .num{font:600 13px var(--mono);color:var(--surface);background:var(--blue);border-radius:8px;padding:4px 8px;grid-row:span 2;margin-top:2px;font-variant-numeric:tabular-nums}
+.caption .nl{font-weight:600;font-size:17px;line-height:1.4;text-wrap:pretty;min-width:0}
+.caption .en{font-style:italic;color:var(--muted);font-size:15px;text-wrap:pretty;min-width:0}
+.caption .flag{font:600 10.5px var(--mono);letter-spacing:.06em;color:var(--muted);margin-right:6px;font-style:normal}
+
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:12px;height:42px;min-width:42px;padding:0 12px;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;font-weight:700}
+.btn svg{width:18px;height:18px}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;min-width:110px}
+.speed{margin-left:auto;display:inline-flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+.speed button{border:0;background:none;padding:0 11px;height:40px;font:600 13px var(--mono);color:var(--muted);cursor:pointer}
+.speed button[aria-pressed="true"]{background:var(--blue-soft);color:var(--blue-ink)}
+.timeline{display:flex;gap:3px;height:8px}
+.timeline button{flex:1;border:0;border-radius:3px;background:var(--line);cursor:pointer;padding:0;position:relative;overflow:hidden}
+.timeline button i{position:absolute;inset:0;width:0;background:var(--blue)}
+
+.grid2{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:720px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+.card h3{font:800 16px var(--sans);margin:0 0 8px}
+.card h3 small{font-weight:400;font-style:italic;color:var(--muted)}
+ol.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+ol.steps li button{width:100%;display:grid;grid-template-columns:28px 1fr;gap:10px;text-align:left;border:0;background:none;padding:9px 6px;border-radius:10px;cursor:pointer}
+ol.steps li+li button{border-top:1px solid var(--line);border-radius:0}
+ol.steps li button.cur{background:var(--blue-soft);border-radius:10px}
+ol.steps .i{font:600 12px var(--mono);color:var(--muted);padding-top:2px;font-variant-numeric:tabular-nums}
+ol.steps .t{font-size:14px;line-height:1.4}
+ol.steps .t em{display:block;color:var(--muted);font-size:13px}
+ul.tips{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;font-size:14px}
+ul.tips em{display:block;color:var(--muted);font-size:13px}
+.vids{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.vid{display:grid;grid-template-columns:40px 1fr;gap:10px;align-items:center;text-decoration:none;color:inherit;border:1px solid var(--line);border-radius:12px;padding:8px 10px;background:var(--surface-2)}
+.vid:hover{border-color:var(--red)}
+.vid .yt{width:40px;height:28px;border-radius:7px;background:var(--red);display:grid;place-items:center}
+.vid .yt svg{width:14px;height:14px}
+.vid b{display:block;font-size:13.5px;line-height:1.3}
+.vid span{font-size:12px;color:var(--muted)}
+.foot{font-size:12.5px;color:var(--muted);text-align:center;text-wrap:balance}
+.foot a{color:inherit}
+@media (prefers-reduced-motion:reduce){.ind svg.on{animation:none}.wheel{transition:none}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="sign" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M6 17l1.5-6A2 2 0 0 1 9.4 9.5h5.2a2 2 0 0 1 1.9 1.5L18 17"/><circle cx="8" cy="17.5" r="1.6"/><circle cx="16" cy="17.5" r="1.6"/><path d="M12 3v3M9 5l3-2 3 2"/></svg></div>
+    <div>
+      <h1>Bijzondere verrichtingen</h1>
+      <div class="sub">Special manoeuvres for the CBR driving test · Nederlands &amp; English</div>
+    </div>
+  </header>
+
+  <p class="note"><b>Op het praktijkexamen doe je twee bijzondere verrichtingen.</b> De examinator kiest welke. Animaties zijn schematisch (bovenaanzicht); volg altijd de aanwijzingen van je instructeur.<br><i>In the practical exam you do two special manoeuvres, chosen by the examiner. The animations are schematic (top view); always follow your instructor.</i></p>
+
+  <nav class="chips" id="chips" aria-label="Manoeuvres"></nav>
+
+  <div class="titlebar">
+    <h2 id="mTitle">Fileparkeren<small>Parallel parking</small></h2>
+    <span class="tag" id="mTag">Parkeren · Parking</span>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas id="cv" aria-label="Animated top view of the manoeuvre" role="img"></canvas>
+    <div class="hud">
+      <div class="hud-l">
+        <div class="pill" title="Versnelling / Gear"><div class="gear" id="gear"><i>P</i><i>R</i><i>N</i><i>D</i></div></div>
+        <div class="pill" title="Stuur / Steering"><svg class="wheel" id="wheel" viewBox="0 0 32 32" fill="none" stroke="#fff" stroke-width="2.6"><circle cx="16" cy="16" r="12.5"/><circle cx="16" cy="16" r="3" fill="#fff"/><path d="M4 16h9M19 16h9M16 19v9.5" stroke-linecap="round"/><path d="M16 3.5v3" stroke="#F2B03B" stroke-width="3" stroke-linecap="round"/></svg><span id="steerTxt">Recht</span></div>
+        <div class="pill ind" title="Richtingaanwijzer / Indicator">
+          <svg id="indL" viewBox="0 0 24 24"><path d="M10 5 3 12l7 7v-4h11V9H10z" fill="#F2B03B"/></svg>
+          <svg id="indR" viewBox="0 0 24 24"><path d="M14 5l7 7-7 7v-4H3V9h11z" fill="#F2B03B"/></svg>
+        </div>
+      </div>
+      <div class="pill look" id="look" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Kijk rond · Look around</div>
+    </div>
+  </div>
+
+  <div class="timeline" id="timeline" aria-label="Steps"></div>
+
+  <div class="caption" aria-live="polite">
+    <span class="num" id="cNum">1/8</span>
+    <div class="nl" id="cNl"></div>
+    <div class="en" id="cEn"></div>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="restart" aria-label="Restart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></button>
+    <button class="btn" id="prev" aria-label="Previous step"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18 9 12l6-6"/></svg></button>
+    <button class="btn primary" id="play"><svg id="playIco" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5v14l12-7z"/></svg><span id="playTxt">Afspelen</span></button>
+    <button class="btn" id="next" aria-label="Next step"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+    <div class="speed" role="group" aria-label="Speed">
+      <button data-s="0.5" aria-pressed="false">0.5×</button><button data-s="1" aria-pressed="true">1×</button><button data-s="2" aria-pressed="false">2×</button>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <section class="card">
+      <h3>Stappen <small>· Steps</small></h3>
+      <ol class="steps" id="steps"></ol>
+    </section>
+    <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+      <section class="card">
+        <h3>Examentips <small>· Exam tips</small></h3>
+        <ul class="tips" id="tips"></ul>
+      </section>
+      <section class="card">
+        <h3>Video's <small>· YouTube</small></h3>
+        <div class="vids" id="vids"></div>
+      </section>
+    </div>
+  </div>
+
+  <p class="foot">Alle bijzondere verrichtingen in één video: <a href="https://www.youtube.com/watch?v=l9STm8-fASM" target="_blank" rel="noopener">9 bijzondere verrichtingen bij het CBR-praktijkexamen</a>. Video's zijn van derden. · Videos are third-party.</p>
+</div>
+
+<script>
+"use strict";
+/* ================= Geometry & simulation =================
+   World units are metres, canvas y points down. Pose = rear-axle centre (x,y) + heading h.
+   k = path curvature (1/m); k>0 steers right (clockwise on screen), k<0 steers left. dir=1 forward, -1 reverse. */
+const CAR={rear:0.9,front:3.5,half:0.9,wb:2.65};
+const RMIN=4.3; // rear-axle turning radius at full lock
+const deg=Math.PI/180;
+const FULL_R=1/RMIN, FULL_L=-1/RMIN;
+
+function simulate(m){
+  const out=[]; let p={...m.start}, t=0, k=0;
+  m.steps.forEach((st,si)=>{
+    const segs=st.move||[];
+    const dist=segs.reduce((a,g)=>a+(g.ang!=null?g.ang*deg*(g.R||RMIN):g.d),0);
+    const v=(segs[0]&&segs[0].dir<0)?1.15:2.0;
+    const dur=Math.max(st.wait||0, dist?Math.max(dist/v,2.6):2.4);
+    const t0=t;
+    out.push({t,x:p.x,y:p.y,h:p.h,k:segs[0]?segs[0].k:0,step:si});
+    if(!dist){ t+=dur; out.push({t,x:p.x,y:p.y,h:p.h,k:0,step:si}); return; }
+    const rate=dist/dur, ds=0.04;
+    for(const g of segs){
+      const d=g.ang!=null?g.ang*deg*(g.R||RMIN):g.d, kk=g.ang!=null?Math.sign(g.k)/(g.R||RMIN):g.k;
+      for(let s=0;s<d-1e-9;s+=ds){const e=Math.min(ds,d-s);
+        p.x+=g.dir*Math.cos(p.h)*e; p.y+=g.dir*Math.sin(p.h)*e; p.h+=g.dir*kk*e; t+=e/rate;
+        out.push({t,x:p.x,y:p.y,h:p.h,k:kk,step:si});}
+    }
+    t=t0+dur;
+  });
+  return out;
+}
+
+/* ================= Drawing helpers ================= */
+const COL={grass:'#6E8F5E',grass2:'#668757',asphalt:'#4B5058',asphalt2:'#555B64',walk:'#B9B4AA',kerb:'#E4E0D7',mark:'#F4F4F0',bike:'#A44A3F'};
+function rr(ctx,x,y,w,h,r){ctx.beginPath();ctx.roundRect?ctx.roundRect(x,y,w,h,r):ctx.rect(x,y,w,h);}
+function carBody(ctx,color,{steer=0,brake=false,rev=false,ind=null,blink=false,learner=false,ghost=false}={}){
+  // local frame: x forward from rear axle, y right
+  const L=CAR.front+CAR.rear, W=CAR.half*2, x0=-CAR.rear, y0=-CAR.half;
+  if(ghost){ctx.setLineDash([0.3,0.25]);ctx.lineWidth=0.08;ctx.strokeStyle='rgba(255,255,255,.75)';rr(ctx,x0,y0,L,W,0.45);ctx.stroke();ctx.setLineDash([]);return;}
+  // shadow
+  ctx.fillStyle='rgba(0,0,0,.22)';rr(ctx,x0+0.12,y0+0.16,L,W,0.5);ctx.fill();
+  // wheels
+  ctx.fillStyle='#16191D';
+  const wheel=(cx,cy,a)=>{ctx.save();ctx.translate(cx,cy);ctx.rotate(a);ctx.fillRect(-0.34,-0.12,0.68,0.24);ctx.restore();};
+  wheel(0,-CAR.half+0.04,0);wheel(0,CAR.half-0.04,0);
+  wheel(CAR.wb,-CAR.half+0.04,steer);wheel(CAR.wb,CAR.half-0.04,steer);
+  // body
+  ctx.fillStyle=color;rr(ctx,x0,y0,L,W,0.5);ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,.35)';ctx.lineWidth=0.05;ctx.stroke();
+  // glass
+  ctx.fillStyle='#1E2A36';
+  rr(ctx,1.85,-0.72,0.75,1.44,0.22);ctx.fill();        // windscreen
+  rr(ctx,-0.55,-0.68,0.5,1.36,0.18);ctx.fill();        // rear window
+  ctx.fillStyle='rgba(255,255,255,.14)';rr(ctx,0.05,-0.74,1.75,1.48,0.3);ctx.fill(); // roof sheen
+  // mirrors
+  ctx.fillStyle=color;ctx.fillRect(1.75,-1.08,0.22,0.2);ctx.fillRect(1.75,0.88,0.22,0.2);
+  // lights
+  ctx.fillStyle='#FFF6D8';ctx.fillRect(3.38,-0.78,0.12,0.36);ctx.fillRect(3.38,0.42,0.12,0.36);
+  ctx.fillStyle=brake?'#FF3B30':'#8E1F1A';ctx.fillRect(-0.9,-0.8,0.12,0.36);ctx.fillRect(-0.9,0.44,0.12,0.36);
+  if(rev){ctx.fillStyle='#FFFFFF';ctx.fillRect(-0.9,-0.38,0.12,0.18);ctx.fillRect(-0.9,0.2,0.12,0.18);
+    ctx.fillStyle='rgba(255,255,255,.16)';ctx.beginPath();ctx.moveTo(-0.9,-0.6);ctx.lineTo(-3,-1.4);ctx.lineTo(-3,1.4);ctx.lineTo(-0.9,0.6);ctx.fill();}
+  if(ind&&blink){ctx.fillStyle='#FFB020';const s=ind==='L'?-1:1;
+    ctx.beginPath();ctx.arc(3.3,s*0.86,0.2,0,7);ctx.fill();ctx.beginPath();ctx.arc(-0.75,s*0.86,0.2,0,7);ctx.fill();
+    ctx.fillStyle='rgba(255,176,32,.25)';ctx.beginPath();ctx.arc(3.3,s*0.86,0.55,0,7);ctx.fill();ctx.beginPath();ctx.arc(-0.75,s*0.86,0.55,0,7);ctx.fill();}
+  if(learner){ctx.fillStyle='#1C4F9C';ctx.strokeStyle='#fff';ctx.lineWidth=0.06;rr(ctx,0.55,-0.32,0.64,0.64,0.08);ctx.fill();ctx.stroke();
+    ctx.save();ctx.translate(0.87,0);ctx.rotate(Math.PI/2);ctx.fillStyle='#fff';ctx.font='800 0.5px Overpass, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('L',0,0.03);ctx.restore();}
+}
+function parked(ctx,x,y,h,color){ctx.save();ctx.translate(x,y);ctx.rotate(h);ctx.translate(-(CAR.front-CAR.rear)/2,0);carBody(ctx,color,{});ctx.restore();}
+function dashed(ctx,x1,y1,x2,y2,dash=[1,1],w=0.12,c=COL.mark){ctx.save();ctx.strokeStyle=c;ctx.lineWidth=w;ctx.setLineDash(dash);ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.restore();}
+function line(ctx,x1,y1,x2,y2,w=0.12,c=COL.mark){dashed(ctx,x1,y1,x2,y2,[],w,c);}
+function label(ctx,txt,x,y,size=0.55,c='rgba(255,255,255,.75)',align='left'){ctx.save();ctx.fillStyle=c;ctx.font=`600 ${size}px Overpass, sans-serif`;ctx.textAlign=align;ctx.textBaseline='middle';ctx.fillText(txt,x,y);ctx.restore();}
+function texture(ctx,b,col,step=1.1){ctx.save();ctx.fillStyle=col;for(let x=Math.floor(b.x0);x<b.x1;x+=step)for(let y=Math.floor(b.y0);y<b.y1;y+=step){if(((x*7+y*13)|0)%5===0)ctx.fillRect(x+0.3,y+0.5,0.18,0.18);}ctx.restore();}
+function road(ctx,b,y0,y1){ctx.fillStyle=COL.asphalt;ctx.fillRect(b.x0-1,y0,b.x1-b.x0+2,y1-y0);}
+function walk(ctx,b,y0,y1){ctx.fillStyle=COL.walk;ctx.fillRect(b.x0-1,y0,b.x1-b.x0+2,y1-y0);
+  ctx.strokeStyle='rgba(0,0,0,.08)';ctx.lineWidth=0.04;for(let x=Math.floor(b.x0);x<b.x1+1;x+=0.6){ctx.beginPath();ctx.moveTo(x,y0);ctx.lineTo(x,y1);ctx.stroke();}}
+function kerbH(ctx,b,y){line(ctx,b.x0-1,y,b.x1+1,y,0.22,COL.kerb);}
+
+/* ================= Manoeuvres ================= */
+const PCOL=['#8E99A6','#B5483F','#3E5F8A','#D8D4CC','#2F3A36','#7A6A55'];
+const M=[
+{ id:'file', nl:'Fileparkeren', en:'Parallel parking', tag:'Parkeren · Parking',
+  view:{x0:0,y0:0.5,x1:22,y1:13.2},
+  scene(ctx,b){ctx.fillStyle=COL.grass;ctx.fillRect(b.x0,b.y0,b.x1-b.x0,b.y1-b.y0);
+    walk(ctx,b,b.y0-1,1.5);road(ctx,b,1.5,10.2);walk(ctx,b,10.2,12.4);kerbH(ctx,b,1.5);kerbH(ctx,b,10.2);
+    dashed(ctx,b.x0,5.35,b.x1,5.35,[1.2,1.2]);
+    parked(ctx,16.2,8.95,0,PCOL[2]);parked(ctx,3.7,8.95,0,PCOL[1]);
+    label(ctx,'stoep · pavement',0.4,11.3,0.55,'rgba(0,0,0,.5)');},
+  start:{x:1,y:6.5,h:0}, target:{x:9.0,y:8.9,h:0},
+  steps:[
+   {nl:'Kijk in je spiegels, geef richting aan naar rechts en rijd naast de voorste auto. Houd 0,5 tot 1 meter zijafstand.',en:'Check your mirrors, signal right and pull up alongside the front car, 0.5 to 1 metre away.',gear:'D',ind:'R',move:[{dir:1,k:0,d:13.9}]},
+   {nl:'Stop als jouw achterkant gelijk staat met de achterkant van die auto. Zet de auto in R (achteruit).',en:'Stop with your rear level with that car\'s rear. Select R (reverse).',gear:'R',ind:'R',wait:2.8},
+   {nl:'Kijk rondom: spiegels, dode hoek en over je rechterschouder door de achterruit.',en:'Look all around: mirrors, blind spot and over your right shoulder through the rear window.',gear:'R',ind:'R',look:1,wait:3},
+   {nl:'Rijd stapvoets achteruit tot je achterwiel ter hoogte is van de achterkant van de andere auto.',en:'Reverse at walking pace until your rear wheel is level with the other car\'s rear.',gear:'R',ind:'R',move:[{dir:-1,k:0,d:0.9}]},
+   {nl:'Stuur helemaal naar rechts. De auto draait de ruimte in, tot ongeveer 45 graden.',en:'Steer full right. The car swings into the gap, to about 45 degrees.',gear:'R',move:[{dir:-1,k:FULL_R,ang:43.9}]},
+   {nl:'Is je voorkant langs de andere auto? Stuur dan helemaal naar links. Let op de stoeprand.',en:'Once your front has cleared the other car, steer full left. Watch the kerb.',gear:'R',move:[{dir:-1,k:FULL_L,ang:43.9}]},
+   {nl:'Zet hem in D, stuur recht en zet de auto midden in de ruimte, evenwijdig aan de stoep.',en:'Select D, straighten up and centre the car in the gap, parallel to the kerb.',gear:'D',move:[{dir:1,k:0,d:0.97}]},
+   {nl:'Zet hem in P en trek de handrem aan. Klaar.',en:'Select P and apply the parking brake. Done.',gear:'P',wait:2.6}],
+  tips:[['Je staat goed als je evenwijdig aan de stoep staat, dichtbij maar zonder de stoep te raken.','Good result: parallel and close to the kerb, without touching it.'],
+        ['Corrigeren mag: een keer extra vooruit of achteruit is geen probleem.','Corrections are allowed: an extra move forward or back is fine.'],
+        ['Blijf rondkijken tijdens het achteruitrijden, niet alleen in de camera.','Keep looking around while reversing, not just at the camera.']],
+  vids:[['iY17XLkcJ0Y','Fileparkeren voor en achteruit','Van Buuren Opleidingen'],['ncwFDv7ZUi8','Fileparkeren','Bijzondere verrichtingen']]},
+
+{ id:'vak-achter', nl:'Achteruit inparkeren', en:'Reverse bay parking', tag:'Parkeren · Parking',
+  view:{x0:3,y0:-1.5,x1:24,y1:13.2}, lot:1,
+  start:{x:3.5,y:3.2,h:0}, target:{x:13.75,y:10.7,h:-90*deg},
+  steps:[
+   {nl:'Rijd langzaam langs de vakken, met 2 à 3 meter afstand tot de geparkeerde auto\'s. Geef richting aan naar rechts.',en:'Drive slowly past the bays, 2 to 3 metres from the parked cars. Signal right.',gear:'D',ind:'R',move:[{dir:1,k:0,d:14.55}]},
+   {nl:'Stop als je achterwiel ongeveer één vak voorbij het lege vak staat. Zet de auto in R.',en:'Stop when your rear wheel is about one bay past the empty bay. Select R.',gear:'R',ind:'R',wait:2.8},
+   {nl:'Kijk rondom: spiegels, dode hoek en over je schouders.',en:'Look all around: mirrors, blind spots and over both shoulders.',gear:'R',ind:'R',look:1,wait:3},
+   {nl:'Stuur helemaal naar rechts en rijd stapvoets achteruit. Kijk in beide spiegels naar de lijnen van het vak.',en:'Steer full right and reverse at walking pace. Use both mirrors to watch the bay lines.',gear:'R',move:[{dir:-1,k:FULL_R,ang:90}]},
+   {nl:'Staat de auto recht tussen de lijnen? Stuur terug en rijd recht achteruit tot het einde van het vak.',en:'Straight between the lines? Straighten the wheel and reverse to the end of the bay.',gear:'R',move:[{dir:-1,k:0,d:3.2}]},
+   {nl:'Zet hem in P. Controleer: midden in het vak en binnen de lijnen.',en:'Select P. Check: centred in the bay and within the lines.',gear:'P',wait:2.6}],
+  tips:[['Rijd stapvoets; dan heb je tijd om te sturen en rond te kijken.','Go at walking pace so you have time to steer and look around.'],
+        ['Gebruik de lijnen in je spiegels: links en rechts moet de afstand gelijk zijn.','Use the lines in your mirrors: equal distance left and right.'],
+        ['Let op voetgangers en auto\'s achter je.','Watch for pedestrians and cars behind you.']],
+  vids:[['kTSpryHT8gc','Achteruit in een vak parkeren (drone-beelden)','Bijzondere verrichting'],['Hf4TXGAKIxI','Achteruit inparkeren in een vak','Uitleg']]},
+
+{ id:'vak-voor', nl:'Vooruit inparkeren', en:'Forward bay parking', tag:'Parkeren · Parking',
+  view:{x0:3,y0:-1.5,x1:24,y1:13.2}, lot:1,
+  start:{x:2.5,y:3.5,h:0}, target:{x:13.75,y:8.2,h:90*deg},
+  steps:[
+   {nl:'Geef richting aan naar rechts en rijd met 2 à 3 meter zijafstand naar het lege vak.',en:'Signal right and approach the empty bay with 2 to 3 metres of side clearance.',gear:'D',ind:'R',move:[{dir:1,k:0,d:6.95}]},
+   {nl:'Begin te sturen net vóór het vak: stuur helemaal naar rechts en rijd stapvoets.',en:'Start steering just before the bay: steer full right at walking pace.',gear:'D',ind:'R',move:[{dir:1,k:FULL_R,ang:90}]},
+   {nl:'Staat de auto evenwijdig aan de lijnen? Stuur recht en rijd door tot het einde van het vak.',en:'Parallel to the lines? Straighten the wheel and drive to the end of the bay.',gear:'D',move:[{dir:1,k:0,d:0.4}]},
+   {nl:'Zet hem in P. Controleer: midden in het vak, niet over de lijn aan de voorkant.',en:'Select P. Check: centred, not over the front line.',gear:'P',wait:2.6}],
+  tips:[['Bij schuine vakken werkt het hetzelfde, alleen stuur je minder ver.','Angled bays work the same way, with less steering.'],
+        ['Let bij het insturen op de achterkant: die snijdt de bocht af.','When turning in, watch the rear: it cuts the corner.'],
+        ['Uitrijden gaat achteruit: kijk dan extra goed rond.','Leaving means reversing out: look around extra carefully.']],
+  vids:[['y279LO385HI','Vooruit in een vak parkeren','Uitleg'],['YvfLBzBZ0ys','Vooruit inparkeren / schuin parkeren','Uitleg']]},
+
+{ id:'halve-draai', nl:'Halve draai', en:'U-turn', tag:'Keren · Turning around',
+  view:{x0:-0.5,y0:-2.2,x1:22,y1:15.2},
+  scene(ctx,b){ctx.fillStyle=COL.grass;ctx.fillRect(b.x0,b.y0,b.x1-b.x0,b.y1-b.y0);
+    walk(ctx,b,b.y0-1,0);road(ctx,b,0,13);walk(ctx,b,13,b.y1+1);kerbH(ctx,b,0);kerbH(ctx,b,13);
+    dashed(ctx,b.x0,6.5,b.x1,6.5,[1.2,1.2]);label(ctx,'brede weg · wide road',21.4,-1,0.55,'rgba(0,0,0,.5)','right');},
+  start:{x:0.5,y:11.0,h:0}, target:null,
+  steps:[
+   {nl:'Rijd rechts op de weg en stop langs de rechterkant. Geef richting aan naar rechts.',en:'Keep right and stop at the right side of the road. Signal right.',gear:'D',ind:'R',move:[{dir:1,k:0,d:7.5}]},
+   {nl:'Kijk goed rond: spiegels, dode hoek links en verkeer van voren en van achteren.',en:'Look around carefully: mirrors, left blind spot and traffic ahead and behind.',gear:'D',ind:'L',look:1,wait:3.2},
+   {nl:'Geef richting aan naar links, stuur helemaal naar links en draai in één keer om. Rijd stapvoets.',en:'Signal left, steer full left and turn around in one go. Walking pace.',gear:'D',ind:'L',move:[{dir:1,k:FULL_L,ang:180}]},
+   {nl:'Stuur terug en rijd weg aan de rechterkant van de weg.',en:'Straighten up and drive off on the right side of the road.',gear:'D',move:[{dir:1,k:0,d:6}]}],
+  tips:[['Alleen doen waar het mag en waar de weg breed genoeg is (geen doorgetrokken streep).','Only where it is allowed and the road is wide enough (no solid line).'],
+        ['Verkeer gaat voor: wacht als er iemand aankomt.','Other traffic has priority: wait if someone is coming.'],
+        ['Lukt het niet in één keer? Dan wordt het keren door steken.','Can\'t make it in one go? Then it becomes a turn in several moves.']],
+  vids:[['5vy1vuJ9gyA','Keren d.m.v. een halve draai','Van Buuren Opleidingen'],['sfp5PnBT7lQ','Omkeren halve draai (drone-beelden)','Bijzondere verrichting']]},
+
+{ id:'steken', nl:'Keren door steken', en:'Three-point turn', tag:'Keren · Turning around',
+  view:{x0:0,y0:-2.2,x1:23,y1:10.2},
+  scene(ctx,b){ctx.fillStyle=COL.grass;ctx.fillRect(b.x0,b.y0,b.x1-b.x0,b.y1-b.y0);
+    walk(ctx,b,b.y0-1,0);road(ctx,b,0,8);walk(ctx,b,8,b.y1+1);kerbH(ctx,b,0);kerbH(ctx,b,8);
+    dashed(ctx,b.x0,4,b.x1,4,[1.2,1.2]);label(ctx,'smalle weg · narrow road',22.4,-1,0.55,'rgba(0,0,0,.5)','right');},
+  start:{x:2.5,y:6.2,h:0}, target:null,
+  steps:[
+   {nl:'Stop rechts langs de stoep. Geef richting aan naar rechts.',en:'Stop on the right, close to the kerb. Signal right.',gear:'D',ind:'R',move:[{dir:1,k:0,d:7.5}]},
+   {nl:'Kijk rondom. Geen verkeer? Geef richting aan naar links.',en:'Look all around. No traffic? Signal left.',gear:'D',ind:'L',look:1,wait:3},
+   {nl:'Rijd langzaam vooruit en stuur vlot helemaal naar links. Stop vóór de overkant.',en:'Move forward slowly, steering briskly to full left. Stop before the far kerb.',gear:'D',ind:'L',move:[{dir:1,k:FULL_L,ang:60}]},
+   {nl:'Stop. Zet de auto in R en kijk opnieuw rond, vooral achter je.',en:'Stop. Select R and look around again, especially behind you.',gear:'R',look:1,wait:3},
+   {nl:'Stuur helemaal naar rechts en rijd achteruit. Stop vóór de stoep achter je.',en:'Steer full right and reverse. Stop before the kerb behind you.',gear:'R',move:[{dir:-1,k:FULL_R,ang:34}]},
+   {nl:'Stop. Zet hem in D en kijk links en rechts.',en:'Stop. Select D and look left and right.',gear:'D',look:1,wait:2.8},
+   {nl:'Stuur naar links en rijd de weg op.',en:'Steer left and pull onto the road.',gear:'D',move:[{dir:1,k:FULL_L,ang:86}]},
+   {nl:'Stuur recht en rijd weg aan de rechterkant.',en:'Straighten up and drive off on the right.',gear:'D',move:[{dir:1,k:0,d:4}]}],
+  tips:[['Raak de stoeprand niet; stop op tijd.','Don\'t touch the kerb; stop in time.'],
+        ['Stuur terwijl de auto langzaam rijdt, niet stilstaand.','Steer while rolling slowly, not while stationary.'],
+        ['Meer dan drie keer steken mag, als het veilig en vlot gaat.','More than three moves is fine, as long as it is safe and smooth.']],
+  vids:[['-awuQe0nog8','Keren d.m.v. steken','Van Buuren Opleidingen'],['BJjZ38E5nuo','Omkeren d.m.v. 3 keer steken (drone-beelden)','Bijzondere verrichting']]},
+
+{ id:'bocht', nl:'Bocht achteruit', en:'Reversing around a corner', tag:'Achteruit · Reversing',
+  view:{x0:0,y0:-2.2,x1:28,y1:20.5}, corner:1,
+  start:{x:1,y:5.1,h:0}, target:{x:14.6,y:16,h:-90*deg},
+  steps:[
+   {nl:'Rijd langs de zijstraat en stop een paar meter voorbij de hoek, ongeveer 1 meter van de stoep.',en:'Drive past the side street and stop a few metres beyond the corner, about 1 metre from the kerb.',gear:'D',ind:'R',move:[{dir:1,k:0,d:24}]},
+   {nl:'Zet de auto in R. Kijk rondom en draai je bovenlichaam, zodat je door de achterruit kijkt.',en:'Select R. Look all around and turn your upper body to look through the rear window.',gear:'R',look:1,wait:3.2},
+   {nl:'Rijd langzaam recht achteruit, evenwijdig aan de stoep.',en:'Reverse slowly in a straight line, parallel to the kerb.',gear:'R',move:[{dir:-1,k:0,d:5.5}]},
+   {nl:'Bij het begin van de bocht stuur je naar rechts. Volg de stoeprand op dezelfde afstand.',en:'Where the corner starts, steer right. Follow the kerb at the same distance.',gear:'R',move:[{dir:-1,k:1/4.9,ang:90,R:4.9}]},
+   {nl:'Staat de auto recht in de straat? Stuur terug en rijd nog een stuk recht achteruit.',en:'Straight in the street? Straighten the wheel and reverse a little further.',gear:'R',move:[{dir:-1,k:0,d:6}]},
+   {nl:'Stop. Je staat nu rechts in de zijstraat en kunt weer vooruit wegrijden.',en:'Stop. You are now on the right of the side street, ready to drive off.',gear:'P',wait:2.6}],
+  tips:[['Houd de hele bocht dezelfde afstand tot de stoep (ongeveer 1 m).','Keep the same distance from the kerb all the way round (about 1 m).'],
+        ['Let op de voorkant: die zwaait uit naar de andere kant van de weg.','Watch the front: it swings out toward the other side of the road.'],
+        ['Kijk regelmatig naar links en rechts voor ander verkeer.','Check left and right regularly for other traffic.']],
+  vids:[['8gcjPll8W3Q','Bocht achteruit rijden','Van Buuren Opleidingen'],['V4BJB21d-u4','Bocht achteruit rijden','Bijzondere verrichtingen']]},
+
+{ id:'recht', nl:'Recht achteruit', en:'Reversing in a straight line', tag:'Achteruit · Reversing',
+  view:{x0:0,y0:-2.2,x1:28,y1:9.6},
+  scene(ctx,b){ctx.fillStyle=COL.grass;ctx.fillRect(b.x0,b.y0,b.x1-b.x0,b.y1-b.y0);
+    walk(ctx,b,b.y0-1,0);road(ctx,b,0,7);walk(ctx,b,7,8.6);ctx.fillStyle=COL.bike;ctx.fillRect(b.x0-1,8.6,b.x1-b.x0+2,b.y1-8.6);
+    kerbH(ctx,b,0);kerbH(ctx,b,7);dashed(ctx,b.x0,3.5,b.x1,3.5,[1.2,1.2]);
+    label(ctx,'fietspad · cycle path',0.5,9.1,0.45,'rgba(255,255,255,.8)');},
+  start:{x:24,y:5.1,h:0}, target:{x:8,y:5.1,h:0},
+  steps:[
+   {nl:'Zet de auto in R. Kijk rondom en draai je bovenlichaam, zodat je door de achterruit kijkt.',en:'Select R. Look all around and turn your upper body to look through the rear window.',gear:'R',look:1,wait:3.2},
+   {nl:'Rijd stapvoets recht achteruit. Houd het stuur met één hand bovenaan vast.',en:'Reverse at walking pace. Hold the wheel at the top with one hand.',gear:'R',move:[{dir:-1,k:0,d:6}]},
+   {nl:'Kleine correcties: de achterkant gaat de kant op waar je naartoe stuurt.',en:'Small corrections: the rear moves the way you steer.',gear:'R',move:[{dir:-1,k:0.035,d:2},{dir:-1,k:-0.035,d:2}]},
+   {nl:'Blijf rondkijken en houd dezelfde afstand tot de stoep.',en:'Keep looking around and keep the same distance from the kerb.',gear:'R',move:[{dir:-1,k:0,d:6}]},
+   {nl:'Stop. Zet hem in P of rijd weer vooruit weg.',en:'Stop. Select P or drive off forwards again.',gear:'P',wait:2.6}],
+  tips:[['Rijd heel langzaam; kleine stuurbewegingen zijn genoeg.','Go very slowly; small steering inputs are enough.'],
+        ['Kijk vooral door de achterruit, en tussendoor in je spiegels.','Look mainly through the rear window, with checks in the mirrors.'],
+        ['Let op fietsers op het fietspad naast je.','Watch for cyclists on the cycle path beside you.']],
+  vids:[['4D3SRyS6EQg','Recht achteruit rijden','Uitleg'],['5nT70bfgAAY','In een rechte lijn achteruit rijden','Uitleg']]},
+
+{ id:'helling', nl:'Hellingproef', en:'Hill start', tag:'Wegrijden · Moving off', side:1,
+  view:{x0:-2,y0:-6.5,x1:24,y1:2.2},
+  start:{x:0,y:0,h:0}, target:null,
+  steps:[
+   {nl:'Rijd de helling op.',en:'Drive up the slope.',gear:'D',move:[{dir:1,k:0,d:7}]},
+   {nl:'Stop op de helling. Houd de rem ingetrapt of zet de handrem erop.',en:'Stop on the slope. Keep the brake pressed or apply the parking brake.',gear:'D',hold:1,wait:3},
+   {nl:'Kijk in je spiegels en over je linkerschouder. Geef richting aan naar links.',en:'Check your mirrors and over your left shoulder. Signal left.',gear:'D',ind:'L',look:1,hold:1,wait:3.2},
+   {nl:'Automaat: in D rustig gas geven en de handrem lossen. Handgeschakeld: koppeling op het aangrijpingspunt, gas, handrem los.',en:'Automatic: in D, gently accelerate and release the parking brake. Manual: clutch to biting point, gas, release the parking brake.',gear:'D',ind:'L',hold:1,wait:4.2},
+   {nl:'Rijd weg zonder terug te rollen.',en:'Move off without rolling back.',gear:'D',move:[{dir:1,k:0,d:9}]}],
+  tips:[['De auto mag niet terugrollen.','The car must not roll back.'],
+        ['Veel automaten hebben een hill-hold-functie, maar kijk en rijd net zo zorgvuldig weg.','Many automatics have hill-hold, but look around and move off just as carefully.'],
+        ['Een elektrische handrem lost vaak vanzelf als je gas geeft.','An electric parking brake often releases by itself when you accelerate.']],
+  vids:[['1tjd8NiG0sk','Hellingproef leren met en zonder handrem','Uitleg'],['XrfkQdZRE-k','Hellingproef auto zonder handrem','Bijzondere verrichtingen']]}
+];
+
+/* shared scenes */
+function lotScene(ctx,b,m){
+  ctx.fillStyle=COL.grass;ctx.fillRect(b.x0,b.y0,b.x1-b.x0,b.y1-b.y0);
+  walk(ctx,b,b.y0-1,-0.6);ctx.fillStyle=COL.asphalt;ctx.fillRect(b.x0-1,-0.6,b.x1-b.x0+2,12.9);
+  ctx.fillStyle=COL.asphalt2;ctx.fillRect(b.x0-1,7,b.x1-b.x0+2,5.3);
+  kerbH(ctx,b,-0.6);kerbH(ctx,b,12.3);
+  for(let x=5;x<=22.5;x+=2.5) line(ctx,x,7,x,12.1,0.12);
+  dashed(ctx,b.x0,7,b.x1,7,[0.6,0.4],0.08,'rgba(255,255,255,.5)');
+  // target bay highlight
+  ctx.fillStyle='rgba(28,79,156,.35)';ctx.fillRect(12.56,7.05,2.38,5.1);
+  label(ctx,'P',13.75,11.5,0.9,'rgba(255,255,255,.85)','center');
+  parked(ctx,6.25,9.6,-90*deg,PCOL[3]);parked(ctx,11.25,9.6,90*deg,PCOL[0]);parked(ctx,16.25,9.6,-90*deg,PCOL[4]);parked(ctx,21.25,9.6,90*deg,PCOL[5]);
+  label(ctx,'parkeerplaats · car park',b.x0+0.4,-1.05,0.5,'rgba(0,0,0,.5)');
+}
+function cornerScene(ctx,b){
+  ctx.fillStyle=COL.asphalt;ctx.fillRect(b.x0-1,b.y0-1,b.x1-b.x0+2,b.y1-b.y0+2);
+  walk(ctx,b,b.y0-1,0);kerbH(ctx,b,0);
+  const block=(x0,x1,cx,cy,left)=>{ctx.beginPath();
+    if(left){ctx.moveTo(x0,7);ctx.lineTo(cx,7);ctx.arc(cx,cy,3,-Math.PI/2,0);ctx.lineTo(x1,b.y1+1);ctx.lineTo(x0,b.y1+1);}
+    else{ctx.moveTo(x1,7);ctx.lineTo(cx,7);ctx.arc(cx,cy,3,-Math.PI/2,-Math.PI,true);ctx.lineTo(x0,b.y1+1);ctx.lineTo(x1,b.y1+1);}
+    ctx.closePath();ctx.fillStyle=COL.walk;ctx.fill();ctx.strokeStyle=COL.kerb;ctx.lineWidth=0.22;ctx.stroke();
+    ctx.save();ctx.clip();ctx.fillStyle=COL.grass;ctx.fillRect(left?x0:x0+2,9,left?(x1-x0-2):x1,b.y1);ctx.restore();};
+  block(b.x0-1,10,7,10,true);block(16.5,b.x1+1,19.5,10,false);
+  dashed(ctx,b.x0,3.5,9,3.5,[1.2,1.2]);dashed(ctx,17.5,3.5,b.x1,3.5,[1.2,1.2]);
+  // shark teeth (haaientanden) at side street exit
+  ctx.fillStyle=COL.mark;for(let x=10.4;x<16.2;x+=0.75){ctx.beginPath();ctx.moveTo(x,7.5);ctx.lineTo(x+0.5,7.5);ctx.lineTo(x+0.25,8.1);ctx.fill();}
+  dashed(ctx,13.25,9,13.25,b.y1,[1,1]);
+  label(ctx,'zijstraat · side street',12.9,19.4,0.5,'rgba(255,255,255,.8)','right');
+}
+function hillScene(ctx,b){
+  const g=ctx.createLinearGradient(0,b.y0,0,b.y1);g.addColorStop(0,'#BFD9EE');g.addColorStop(1,'#E6F0F7');
+  ctx.fillStyle=g;ctx.fillRect(b.x0,b.y0,b.x1-b.x0,b.y1-b.y0);
+  const a=HILL_A;ctx.beginPath();ctx.moveTo(b.x0-1,0.4);ctx.lineTo(2,0.4);ctx.lineTo(b.x1+2,0.4-Math.tan(a)*(b.x1+2-2));ctx.lineTo(b.x1+2,b.y1+1);ctx.lineTo(b.x0-1,b.y1+1);ctx.closePath();
+  ctx.fillStyle=COL.grass;ctx.fill();
+  ctx.beginPath();ctx.moveTo(b.x0-1,0);ctx.lineTo(2,0);ctx.lineTo(b.x1+2,-Math.tan(a)*(b.x1+2-2));ctx.lineWidth=0.5;ctx.strokeStyle=COL.asphalt;ctx.stroke();
+  label(ctx,'helling · slope '+Math.round(Math.tan(a)*100)+'%',15,0.6,0.6,'rgba(255,255,255,.85)');
+}
+const HILL_A=9*deg;
+function hillPose(s){ // s distance along road from x=0
+  if(s<=2) return {x:s,y:0,a:0}; const d=s-2; return {x:2+d*Math.cos(HILL_A),y:-d*Math.sin(HILL_A),a:-HILL_A};
+}
+function sideCar(ctx,x,y,a,{brake=false,ind=null,blink=false}){
+  ctx.save();ctx.translate(x,y);ctx.rotate(a);
+  ctx.fillStyle='rgba(0,0,0,.18)';ctx.beginPath();ctx.ellipse(1.3,-0.05,2.4,0.12,0,0,7);ctx.fill();
+  ctx.fillStyle='#F2C230';ctx.beginPath();
+  ctx.moveTo(-0.9,-0.35);ctx.lineTo(-0.9,-1.0);ctx.quadraticCurveTo(-0.7,-1.12,-0.3,-1.12);ctx.lineTo(0.2,-1.15);ctx.lineTo(0.75,-1.58);ctx.lineTo(2.1,-1.6);ctx.lineTo(2.75,-1.12);ctx.lineTo(3.35,-1.0);ctx.quadraticCurveTo(3.55,-0.9,3.5,-0.35);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,.3)';ctx.lineWidth=0.04;ctx.stroke();
+  ctx.fillStyle='#1E2A36';ctx.beginPath();ctx.moveTo(0.35,-1.17);ctx.lineTo(0.85,-1.5);ctx.lineTo(1.35,-1.5);ctx.lineTo(1.35,-1.17);ctx.fill();
+  ctx.beginPath();ctx.moveTo(1.45,-1.17);ctx.lineTo(1.45,-1.5);ctx.lineTo(2.05,-1.5);ctx.lineTo(2.55,-1.17);ctx.fill();
+  ctx.fillStyle='#1C4F9C';ctx.fillRect(1.1,-1.85,0.5,0.25);ctx.fillStyle='#fff';ctx.font='800 0.24px Overpass, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('L',1.35,-1.72);
+  ctx.fillStyle=brake?'#FF3B30':'#8E1F1A';ctx.fillRect(-0.95,-0.95,0.12,0.22);
+  ctx.fillStyle='#FFF6D8';ctx.fillRect(3.42,-0.9,0.1,0.18);
+  if(ind&&blink){ctx.fillStyle='#FFB020';ctx.beginPath();ctx.arc(3.35,-0.62,0.11,0,7);ctx.fill();ctx.beginPath();ctx.arc(-0.85,-0.62,0.11,0,7);ctx.fill();}
+  ctx.fillStyle='#16191D';[0,2.65].forEach(wx=>{ctx.beginPath();ctx.arc(wx,-0.34,0.34,0,7);ctx.fill();ctx.fillStyle='#9AA3AD';ctx.beginPath();ctx.arc(wx,-0.34,0.14,0,7);ctx.fill();ctx.fillStyle='#16191D';});
+  ctx.restore();
+}
+
+/* ================= App ================= */
+const $=id=>document.getElementById(id);
+const cv=$('cv'), ctx=cv.getContext('2d');
+let cur=0, samples=[], T=0, t=0, playing=false, speed=1, last=0, stepStarts=[];
+function prep(){
+  const m=M[cur]; samples=simulate(m); T=samples[samples.length-1].t;
+  stepStarts=m.steps.map((_,i)=>samples.find(s=>s.step===i).t);
+}
+function at(time){ // interpolate sample
+  let lo=0,hi=samples.length-1; if(time<=0) return samples[0]; if(time>=T) return samples[hi];
+  while(hi-lo>1){const mid=(lo+hi)>>1; if(samples[mid].t<=time) lo=mid; else hi=mid;}
+  const a=samples[lo],b=samples[hi],f=b.t>a.t?(time-a.t)/(b.t-a.t):0;
+  return {x:a.x+(b.x-a.x)*f,y:a.y+(b.y-a.y)*f,h:a.h+(b.h-a.h)*f,k:b.k,step:b.t===a.t?a.step:(f<1?b.step:b.step)};
+}
+function stepAt(time){let s=0;for(let i=0;i<stepStarts.length;i++) if(time>=stepStarts[i]-1e-6) s=i;return s;}
+
+function resize(){
+  const m=M[cur], v=m.view, w=cv.parentElement.clientWidth, h=Math.round(w*(v.y1-v.y0)/(v.x1-v.x0));
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr); cv.style.height=h+'px';
+  draw();
+}
+function draw(){
+  const m=M[cur], v=m.view, sc=cv.width/(v.x1-v.x0);
+  ctx.setTransform(sc,0,0,sc,-v.x0*sc,-v.y0*sc);
+  const b=v, si=stepAt(t), st=m.steps[si], blink=(performance.now()%700)<380;
+  if(m.side){
+    hillScene(ctx,b);
+    // trace
+    const p=at(t), hp=hillPose(p.x);
+    const ghost=hillPose(16);ctx.globalAlpha=.35;sideCar(ctx,ghost.x,ghost.y,ghost.a,{});ctx.globalAlpha=1;
+    sideCar(ctx,hp.x,hp.y,hp.a,{brake:!!st.hold||(!st.move),ind:st.ind,blink});
+    if(st.hold){label(ctx,'rem / brake',hp.x+1.3,hp.y-2.4,0.55,'#7A1E18','center');}
+    return;
+  }
+  if(m.lot) lotScene(ctx,b,m); else if(m.corner) cornerScene(ctx,b); else m.scene(ctx,b);
+  // whole path (ghost) + travelled
+  ctx.save();ctx.lineCap='round';
+  ctx.strokeStyle='rgba(255,255,255,.35)';ctx.lineWidth=0.09;ctx.setLineDash([0.35,0.3]);ctx.beginPath();
+  samples.forEach((s,i)=>i?ctx.lineTo(s.x,s.y):ctx.moveTo(s.x,s.y));ctx.stroke();
+  ctx.setLineDash([]);ctx.strokeStyle='#F2B03B';ctx.lineWidth=0.12;ctx.beginPath();
+  let started=false;for(const s of samples){if(s.t>t) break; started?ctx.lineTo(s.x,s.y):ctx.moveTo(s.x,s.y);started=true;}
+  ctx.stroke();ctx.restore();
+  // target outline
+  if(m.target){ctx.save();ctx.translate(m.target.x,m.target.y);ctx.rotate(m.target.h);carBody(ctx,'',{ghost:true});ctx.restore();}
+  // our car
+  const p=at(t), moving=!!(st.move&&st.move.length) && t<T;
+  ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.h);
+  carBody(ctx,'#F2C230',{steer:Math.atan(CAR.wb*p.k),brake:!moving,rev:st.gear==='R',ind:st.ind,blink,learner:true});
+  ctx.restore();
+}
+function hud(){
+  const m=M[cur], si=stepAt(t), st=m.steps[si], p=at(t);
+  [...$('gear').children].forEach(i=>i.classList.toggle('on',i.textContent===st.gear));
+  const k=(st.move&&st.move.length)?p.k:0, full=Math.abs(k)>0.15, part=Math.abs(k)>0.001;
+  const rot=k>0?(full?540:120):k<0?(full?-540:-120):0;
+  $('wheel').style.transform=`rotate(${rot}deg)`;
+  $('steerTxt').textContent=!part?'Recht · Straight':(k>0?(full?'Vol rechts · Full right':'Iets rechts · Slight right'):(full?'Vol links · Full left':'Iets links · Slight left'));
+  $('indL').classList.toggle('on',st.ind==='L');$('indR').classList.toggle('on',st.ind==='R');
+  $('look').hidden=!st.look;
+  $('cNum').textContent=(si+1)+'/'+m.steps.length;
+  $('cNl').innerHTML='<span class="flag">NL</span>'+esc(st.nl);
+  $('cEn').innerHTML='<span class="flag">EN</span>'+esc(st.en);
+  document.querySelectorAll('#steps button').forEach((b,i)=>b.classList.toggle('cur',i===si));
+  document.querySelectorAll('#timeline button i').forEach((el,i)=>{
+    const a=stepStarts[i], e=i+1<stepStarts.length?stepStarts[i+1]:T;
+    el.style.width=(t>=e?100:t<=a?0:(t-a)/(e-a)*100)+'%';});
+  $('playTxt').textContent=playing?'Pauze':(t>=T?'Opnieuw':'Afspelen');
+  $('playIco').innerHTML=playing?'<path d="M7 5h4v14H7zM13 5h4v14h-4z"/>':(t>=T?'<path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/>':'<path d="M7 5v14l12-7z"/>');
+}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function loop(now){
+  if(playing){t+=Math.min(0.1,(now-last)/1000)*speed; if(t>=T){t=T;playing=false;}}
+  last=now; draw(); hud(); requestAnimationFrame(loop);
+}
+function select(i,autoplay){
+  cur=i; t=0; playing=!!autoplay; prep();
+  const m=M[i];
+  $('mTitle').innerHTML=esc(m.nl)+'<small>'+esc(m.en)+'</small>';
+  $('mTag').textContent=m.tag;
+  document.querySelectorAll('.chip').forEach((c,j)=>c.setAttribute('aria-pressed',String(j===i)));
+  $('timeline').innerHTML=m.steps.map((s,j)=>`<button aria-label="Stap ${j+1}" data-i="${j}"><i></i></button>`).join('');
+  $('steps').innerHTML=m.steps.map((s,j)=>`<li><button data-i="${j}"><span class="i">${String(j+1).padStart(2,'0')}</span><span class="t">${esc(s.nl)}<em>${esc(s.en)}</em></span></button></li>`).join('');
+  $('tips').innerHTML=m.tips.map(([nl,en])=>`<li>${esc(nl)}<em>${esc(en)}</em></li>`).join('');
+  $('vids').innerHTML=m.vids.map(([id,title,by])=>`<a class="vid" href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener"><span class="yt"><svg viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg></span><span><b>${esc(title)}</b><span>${esc(by)} · YouTube</span></span></a>`).join('');
+  document.querySelectorAll('#timeline button,#steps button').forEach(b=>b.addEventListener('click',()=>{t=stepStarts[+b.dataset.i]+0.001;playing=true;last=performance.now();}));
+  try{localStorage.setItem('bv-cur',m.id)}catch(e){}
+  try{history.replaceState(null,'','#'+m.id)}catch(e){}
+  resize();
+}
+$('chips').innerHTML=M.map((m,i)=>`<button class="chip" id="chip-${m.id}" aria-pressed="false"><span class="n">${String(i+1).padStart(2,'0')}</span><b>${esc(m.nl)}</b><span>${esc(m.en)}</span></button>`).join('');
+document.querySelectorAll('.chip').forEach((c,i)=>c.addEventListener('click',()=>{select(i,true);c.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'});}));
+$('play').onclick=()=>{if(t>=T) t=0; playing=!playing; last=performance.now();};
+$('restart').onclick=()=>{t=0;playing=true;last=performance.now();};
+$('prev').onclick=()=>{const s=stepAt(t);const target=(t-stepStarts[s]>0.6)?s:Math.max(0,s-1);t=stepStarts[target]+0.001;};
+$('next').onclick=()=>{const s=stepAt(t);t=s+1<stepStarts.length?stepStarts[s+1]+0.001:T;};
+document.querySelectorAll('.speed button').forEach(b=>b.onclick=()=>{speed=+b.dataset.s;document.querySelectorAll('.speed button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));});
+document.addEventListener('keydown',e=>{if(e.target.closest('input,textarea'))return;if(e.code==='Space'){e.preventDefault();$('play').click();}if(e.key==='ArrowRight')$('next').click();if(e.key==='ArrowLeft')$('prev').click();});
+new ResizeObserver(resize).observe($('stage'));
+let startIdx=0;
+const hash=(location.hash||'').slice(1);
+try{const saved=hash||localStorage.getItem('bv-cur');const j=M.findIndex(m=>m.id===saved);if(j>=0) startIdx=j;}catch(e){}
+select(startIdx,false);
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(draw);
+requestAnimationFrame(n=>{last=n;loop(n);});
+</script>
+
+</body>
+</html>
